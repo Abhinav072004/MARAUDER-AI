@@ -16,6 +16,7 @@ class FrameProcessor:
         self.background = BackgroundCapture(background_frames)
         self.enabled = True
         self.effects = SceneEffects()
+        self.person_segmentation = None
         self.mask_processor = MaskProcessor(**(mask_options or {})) if refine else None
         self._signature = None
         self._last_time = None
@@ -26,6 +27,8 @@ class FrameProcessor:
         self._last_time = now
         captured = self.background.update(frame)
         mask = self.detector.detect(frame)
+        if self.person_segmentation is not None:
+            mask = self.person_segmentation.refine(frame, mask)
         signature = (frame.shape, tuple(self.detector.ranges), self.enabled)
         if self.mask_processor is not None:
             if signature != self._signature or captured or self.background.capturing:

@@ -15,12 +15,12 @@ def test_application_shortcuts_and_cleanup(tmp_path, monkeypatch):
     frame = np.full((32, 48, 3), (0, 255, 0), np.uint8)
     args = SimpleNamespace(
         width=640, height=480, background_frames=3, color="green",
-        calibration=None, camera=0, raw_mask=False,
+        calibration=None, camera=0, raw_mask=False, demo=False,
         cleanup_size=3, feather_size=5, min_area_ratio=0.0005, smoothing_ms=45,
         save_calibration=str(tmp_path / "saved.json"),
     )
     keys = [ord(k) for k in "Biii23cqb"] + [27]
-    with patch.object(main, "FrameProcessor", return_value=processor), \
+    with patch.object(main, "create_processor", return_value=processor), \
             patch.object(main, "Camera") as camera_class, \
             patch.object(main.cv2, "namedWindow"), \
             patch.object(main.cv2, "createTrackbar"), \

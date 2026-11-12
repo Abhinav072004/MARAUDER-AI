@@ -1,7 +1,6 @@
 """MARAUDER AI desktop entry point."""
 
 import argparse
-import json
 import logging
 import os
 import sys
@@ -11,8 +10,8 @@ import cv2
 
 from config.settings import Settings
 from core.camera import Camera
-from core.frame_processor import FrameProcessor
-from tracking.floor_mapping import FloorMapping
+from core.factory import create_processor
+from core.demo_camera import DemoCamera
 from interaction.controller import Controller
 
 WINDOW = "MARAUDER AI | Cloak preview"
@@ -38,30 +37,17 @@ def run(args):
         os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")
     ):
         raise RuntimeError("No desktop display. Run locally in a graphical session.")
-    processor = FrameProcessor(args.color, settings.background_frames,
-                               refine=not args.raw_mask, mask_options={
-                                   "kernel_size": args.cleanup_size,
-                                   "feather_size": args.feather_size,
-                                   "min_area_ratio": args.min_area_ratio,
-                                   "temporal_seconds": args.smoothing_ms / 1000,
-                               })
-    if getattr(args, "floor_calibration", None):
-        with open(args.floor_calibration) as source:
-            data = json.load(source)
-        processor.effects.steps.mapping = FloorMapping(
-            data["image_points"], data["floor_points"])
-        processor.effects.steps.spacing = float(data.get("spacing", 35))
-        if processor.effects.steps.spacing <= 0:
-            raise ValueError("Floor step spacing must be positive")
-    if args.calibration:
-        processor.detector.load(args.calibration)
+    processor = create_processor(args)
     controller = Controller(processor, getattr(args, "voice_model", None))
     camera = None
     calibrating = False
     fps = 0.0
     previous = perf_counter()
     try:
-        camera = Camera(args.camera, settings.width, settings.height)
+        camera = (DemoCamera(settings.width, settings.height)
+                  if args.demo else Camera(args.camera, settings.width, settings.height))
+        if args.demo:
+            processor.background.start()
         cv2.namedWindow(WINDOW, cv2.WINDOW_NORMAL)
         logging.info("Camera %s opened. Clear scene, then press B.", camera.index)
         while True:
@@ -111,7 +97,7 @@ def run(args):
             cv2.imshow(WINDOW, output)
             if calibrating:
                 cv2.imshow(CALIBRATION, mask)
-            key = cv2.waitKey(1) & 0xFF
+            key = cv2.waitKey(30 if args.demo else 1) & 0xFF
             if key == 27 or cv2.getWindowProperty(WINDOW, cv2.WND_PROP_VISIBLE) < 1:
                 break
             if controller.key(key):
@@ -138,6 +124,8 @@ def run(args):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--gui", action="store_true", help="Use the PySide6 desktop interface")
+    parser.add_argument("--demo", action="store_true", help="Use an explicitly synthetic source")
     parser.add_argument("--voice-model", help="Unpacked offline Vosk model directory")
     parser.add_argument("--floor-calibration", help="Four-point floor mapping JSON")
     parser.add_argument("--camera", type=int, help="Device index; default probes 0–3")
@@ -160,6 +148,9 @@ def main():
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
     try:
+        if args.gui:
+            from gui.main_window import launch
+            return launch(args)
         run(args)
     except KeyboardInterrupt:
         return 0

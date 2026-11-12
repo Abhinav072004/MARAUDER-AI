@@ -11,6 +11,7 @@ class Controller:
         self.voice = VoiceController(voice_model)
         self.audio = AudioManager()
         self.gesture = None
+        self.pose = None
         self.status = ''
 
     def activate(self, active):
@@ -32,6 +33,34 @@ class Controller:
                 self.status = f'Gestures unavailable: {error}'
                 logging.warning(self.status)
 
+    def toggle_pose(self):
+        if self.pose is not None:
+            self.pose.close()
+            self.pose = None
+            self.processor.effects.pose_bounds = None
+        else:
+            try:
+                from tracking.pose_tracker import PoseTracker
+                self.pose = PoseTracker()
+            except Exception as error:
+                self.status = f"Pose unavailable: {error}"
+                logging.warning(self.status)
+
+    def toggle_segmentation(self):
+        model = self.processor.person_segmentation
+        if model is not None:
+            model.close()
+            self.processor.person_segmentation = None
+        else:
+            try:
+                from core.person_segmentation import PersonSegmentation
+                self.processor.person_segmentation = PersonSegmentation()
+            except Exception as error:
+                self.status = f"Segmentation unavailable: {error}"
+                logging.warning(self.status)
+        if self.processor.mask_processor:
+            self.processor.mask_processor.reset()
+
     def toggle_voice(self):
         if self.voice.running:
             self.voice.stop()
@@ -44,6 +73,14 @@ class Controller:
 
     def update(self, frame):
         commands = self.voice.poll()
+        if self.pose is not None:
+            try:
+                self.processor.effects.pose_bounds = self.pose.update(frame)
+            except Exception as error:
+                self.status = f"Pose tracking failed: {error}"
+                self.pose.close()
+                self.pose = None
+                self.processor.effects.pose_bounds = None
         if self.gesture is not None:
             try:
                 command = self.gesture.update(frame)
@@ -64,10 +101,18 @@ class Controller:
             self.processor.background.start()
         elif key == 'i':
             self.activate(not self.processor.enabled)
-        elif key in ('g', 'm', 's'):
-            name = {'g': 'ghost', 'm': 'footsteps', 's': 'sparkles'}[key]
+        elif key in ('g', 'm', 's', 'r', 'h', 'p'):
+            name = {'g': 'ghost', 'm': 'footsteps', 's': 'sparkles',
+                    'r': 'reveal', 'h': 'shield', 'p': 'ambient'}[key]
             effects = self.processor.effects
             setattr(effects, name, not getattr(effects, name))
+        elif key == 't':
+            freeze = self.processor.effects.freeze
+            freeze.enabled = not freeze.enabled
+        elif key == 'o':
+            self.toggle_pose()
+        elif key == 'e':
+            self.toggle_segmentation()
         elif key == 'v':
             self.toggle_voice()
         elif key == 'j':
@@ -82,4 +127,8 @@ class Controller:
         self.voice.stop()
         if self.gesture is not None:
             self.gesture.close()
+        if self.pose is not None:
+            self.pose.close()
+        if self.processor.person_segmentation is not None:
+            self.processor.person_segmentation.close()
         self.audio.close()

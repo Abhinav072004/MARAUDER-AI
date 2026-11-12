@@ -240,3 +240,35 @@ No external sound assets or credentials are needed.
 Automated tests cover command parsing, state/audio dispatch, hand geometry,
 missing-model errors and worker failure containment. They do not verify spoken
 command accuracy or physical hands/microphone/speaker behaviour in this cloud.
+
+## Phase 5: desktop interface and additional modes
+
+```bash
+python -m pip install -r requirements-gui.txt
+python main.py --gui --width 640 --height 480
+python main.py --gui --demo --width 640 --height 480
+```
+
+The demo is explicitly **synthetic**, automatically captures its empty test scene
+and then animates a green rectangle. It demonstrates rendering and desktop
+controls, not physical webcam quality. The GUI displays a live preview, alpha
+mask, modes, FPS/processing time, camera/background state and interaction errors.
+Capture, colour/HSV calibration save/load, invisibility/particle sliders, sound,
+gestures, offline voice and mode controls are in the right-hand scroll panel.
+The camera and optional inference run in a worker thread; frame delivery retains
+only the latest frame to avoid GUI queue buildup.
+
+R toggles a glowing reveal silhouette; H toggles animated shield rings; T freezes
+the rendered image while camera capture continues; P toggles floating ambient
+particles. GUI controls choose gold, purple or blue particles, a heatmap reveal,
+and intensity from 0–100%. O enables optional MediaPipe Pose to anchor the shield;
+without a visible pose the measured cloak bounds are used. E toggles a small
+MediaPipe person mask gate: it can suppress keyed background objects but may
+also remove parts of loose cloth. HSV remains the primary invisibility mask.
+Pose and person segmentation are off by default and require interaction extras.
+
+![Actual desktop screenshot using the synthetic source](docs/images/synthetic-desktop.png)
+
+Offscreen Qt integration tests exercise real widgets, threaded synthetic frames,
+controls, capture, freeze and worker shutdown. Blank-frame inference checks for
+MediaPipe Pose/person segmentation are separate from physical-person validation.

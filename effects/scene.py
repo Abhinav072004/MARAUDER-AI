@@ -6,10 +6,20 @@ from effects.footsteps import Footsteps
 from effects.ghost_mode import GhostMode
 from effects.particle_engine import ParticleEngine
 from tracking.motion_tracker import MotionTracker
+from effects.reveal_mode import render_reveal
+from effects.magic_shield import render_shield
+from effects.time_freeze import TimeFreeze
 
 
 class SceneEffects:
     def __init__(self, floor_mapping=None):
+        self.reveal = False
+        self.heatmap = False
+        self.shield = False
+        self.ambient = False
+        self.particle_color = (40, 190, 255)
+        self.pose_bounds = None
+        self.freeze = TimeFreeze()
         self.ghost = False
         self.footsteps = False
         self.sparkles = False
@@ -37,6 +47,10 @@ class SceneEffects:
         if self.ghost and enabled:
             output = self.ghost_effect.render(frame, background, mask,
                                                self.time, self.intensity)
+        if self.reveal:
+            output = render_reveal(frame, mask, self.time, self.heatmap)
+        if self.shield:
+            output = render_shield(output, self.pose_bounds or motion.bounds, self.time)
         if self.footsteps:
             self.steps.update(motion, dt)
             output = self.steps.draw(output)
@@ -50,9 +64,12 @@ class SceneEffects:
                                           cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
             if contours:
                 points = np.concatenate(contours).reshape(-1, 2)
-        rate = min(240, motion.speed) * self.particle_intensity
-        self.particles.emit(points, rate, dt)
+        if self.ambient and motion.bounds is not None:
+            x, y, w, h = motion.bounds
+            points = np.array([(x, y), (x + w, y), (x, y + h), (x + w, y + h)])
+        rate = (min(240, motion.speed) + (50 if self.ambient else 0)) * self.particle_intensity
+        self.particles.emit(points, rate, dt, self.particle_color)
         self.particles.update(dt, frame.shape)
         if self.particles.particles:
             output = self.particles.draw(output)
-        return output
+        return self.freeze.render(output)
