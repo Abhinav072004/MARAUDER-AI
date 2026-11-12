@@ -1,0 +1,5 @@
+-r requirements.txt
+mediapipe==0.10.21
+vosk==0.3.45
+sounddevice==0.5.1
+pygame==2.6.1

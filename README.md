@@ -211,3 +211,32 @@ vertical-position scale approximation. Floor mapping assumes a planar floor.
 Tests exercise translated-image optical flow, stationary/moving footstep
 generation and fade, particle capacity/expiry, homography round-trip and ghost
 compositing. Check appearance on a real camera using G/M/S before a demo.
+
+## Phase 4: hands, voice and sound
+
+Install optional interaction dependencies with
+`python -m pip install -r requirements-interaction.txt`. The base now uses
+NumPy 1.26.4 and **opencv-contrib-python 4.11.0.86** to match MediaPipe 0.10.21;
+do not install multiple OpenCV wheel variants in the same virtual environment.
+For an existing environment, uninstall `opencv-python` before installing these
+requirements, or create a fresh virtual environment.
+
+J toggles MediaPipe Hands. Hold an open palm for three observations to activate,
+or a fist to deactivate. A 1.5-second cooldown prevents repeated triggers; hands
+must be visible and lighting adequate. This heuristic uses finger/wrist distance
+ratios and may be ambiguous with foreshortened or sideways hands.
+
+V toggles **offline** Vosk voice recognition in a background thread. Download and
+unpack an English Vosk model from the official model catalogue
+(https://alphacephei.com/vosk/models), then run
+`python main.py --voice-model /path/to/vosk-model-small-en-us-0.15`.
+Model files are not bundled or automatically downloaded. Speak exactly Lumos or
+Invisibility to activate, and Nox or Reveal to deactivate. No audio is uploaded.
+Microphone permissions and PortAudio are needed (`libportaudio2` on Debian/Ubuntu).
+A toggles sound. Activation/deactivation play different synthesized chimes once
+per state change; playback is nonblocking and missing audio devices are reported.
+No external sound assets or credentials are needed.
+
+Automated tests cover command parsing, state/audio dispatch, hand geometry,
+missing-model errors and worker failure containment. They do not verify spoken
+command accuracy or physical hands/microphone/speaker behaviour in this cloud.

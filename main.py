@@ -13,6 +13,7 @@ from config.settings import Settings
 from core.camera import Camera
 from core.frame_processor import FrameProcessor
 from tracking.floor_mapping import FloorMapping
+from interaction.controller import Controller
 
 WINDOW = "MARAUDER AI | Cloak preview"
 CALIBRATION = "HSV calibration | Q to save and close"
@@ -54,6 +55,7 @@ def run(args):
             raise ValueError("Floor step spacing must be positive")
     if args.calibration:
         processor.detector.load(args.calibration)
+    controller = Controller(processor, getattr(args, "voice_model", None))
     camera = None
     calibrating = False
     fps = 0.0
@@ -74,6 +76,7 @@ def run(args):
                     values[4] = max(values[1], values[4])
                     values[5] = max(values[2], values[5])
                     processor.detector.set_bounds(values[:3], values[3:])
+            controller.update(frame)
             output, mask = processor.process(frame)
             elapsed_ms = (perf_counter() - begin) * 1000
             now = perf_counter()
@@ -97,6 +100,7 @@ def run(args):
                 "B capture | I toggle | G ghost | M steps | S sparkle | C calibrate | ESC exit",
                 f"Ghost {processor.effects.ghost} | Steps {processor.effects.footsteps} | "
                 f"Sparkles {processor.effects.sparkles}",
+                controller.status or controller.voice.status,
             ]
             for i, line in enumerate(lines):
                 position = (12, 28 + i * 28)
@@ -110,16 +114,8 @@ def run(args):
             key = cv2.waitKey(1) & 0xFF
             if key == 27 or cv2.getWindowProperty(WINDOW, cv2.WND_PROP_VISIBLE) < 1:
                 break
-            if key in (ord("b"), ord("B")):
-                bg.start()
-            elif key in (ord("i"), ord("I")):
-                processor.enabled = not processor.enabled
-            elif key in (ord("g"), ord("G")):
-                processor.effects.ghost = not processor.effects.ghost
-            elif key in (ord("m"), ord("M")):
-                processor.effects.footsteps = not processor.effects.footsteps
-            elif key in (ord("s"), ord("S")):
-                processor.effects.sparkles = not processor.effects.sparkles
+            if controller.key(key):
+                pass
             elif key in (ord("1"), ord("2"), ord("3")):
                 processor.detector.set_preset({49: "green", 50: "red", 51: "blue"}[key])
                 if calibrating:
@@ -134,6 +130,7 @@ def run(args):
                 cv2.destroyWindow(CALIBRATION)
                 calibrating = False
     finally:
+        controller.close()
         if camera is not None:
             camera.close()
         cv2.destroyAllWindows()
@@ -141,6 +138,7 @@ def run(args):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--voice-model", help="Unpacked offline Vosk model directory")
     parser.add_argument("--floor-calibration", help="Four-point floor mapping JSON")
     parser.add_argument("--camera", type=int, help="Device index; default probes 0–3")
     parser.add_argument("--width", type=int, default=1280)
