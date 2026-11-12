@@ -192,3 +192,22 @@ the displayed FPS. No demo recording or real-webcam validation is claimed here.
 
 Next, after physical webcam acceptance of the core and refinement: motion-linked effects; asynchronous voice/MediaPipe interaction;
 additional modes and desktop GUI; then performance profiling and demonstration.
+
+## Phase 3: motion-driven effects
+
+G toggles translucent Ghost/Predator mode with a cyan shimmering edge. M toggles
+fading footsteps along the measured bottom-centre movement path. S toggles
+golden particles emitted along moving cloak contours. Tracking uses sparse
+Lucas–Kanade optical flow with silhouette displacement as a fallback for cloth
+without texture. A stationary cloth does not continuously emit footsteps or
+sparkles. Cloth movement is an approximation of walking, not foot-pose detection.
+
+Optional `--floor-calibration floor.json` accepts four image/floor point pairs:
+`{"image_points":[[0,0],[100,0],[100,100],[0,100]],"floor_points":[[0,0],[100,0],[100,100],[0,100]],"spacing":35}`.
+Replace these with measured floor quadrilateral corners in corresponding order.
+Spacing is in calibrated floor units; the fallback uses image pixels and a
+vertical-position scale approximation. Floor mapping assumes a planar floor.
+
+Tests exercise translated-image optical flow, stationary/moving footstep
+generation and fade, particle capacity/expiry, homography round-trip and ghost
+compositing. Check appearance on a real camera using G/M/S before a demo.

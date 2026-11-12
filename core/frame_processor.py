@@ -6,6 +6,7 @@ from core.background_capture import BackgroundCapture
 from core.cloak_detector import CloakDetector
 from core.invisibility_engine import composite
 from core.mask_processor import MaskProcessor
+from effects.scene import SceneEffects
 
 
 class FrameProcessor:
@@ -14,6 +15,7 @@ class FrameProcessor:
         self.detector = CloakDetector(color)
         self.background = BackgroundCapture(background_frames)
         self.enabled = True
+        self.effects = SceneEffects()
         self.mask_processor = MaskProcessor(**(mask_options or {})) if refine else None
         self._signature = None
         self._last_time = None
@@ -36,5 +38,10 @@ class FrameProcessor:
             self.background.background = None
             background = None
         if self.enabled and not self.background.capturing:
-            return composite(frame, background, mask), mask
-        return frame.copy(), mask
+            output = composite(frame, background, mask, self.effects.intensity)
+        else:
+            output = frame.copy()
+        output = self.effects.render(
+            frame, output, background, mask, dt,
+            enabled=self.enabled and not self.background.capturing)
+        return output, mask

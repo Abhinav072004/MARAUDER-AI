@@ -1,6 +1,7 @@
 """MARAUDER AI desktop entry point."""
 
 import argparse
+import json
 import logging
 import os
 import sys
@@ -11,6 +12,7 @@ import cv2
 from config.settings import Settings
 from core.camera import Camera
 from core.frame_processor import FrameProcessor
+from tracking.floor_mapping import FloorMapping
 
 WINDOW = "MARAUDER AI | Cloak preview"
 CALIBRATION = "HSV calibration | Q to save and close"
@@ -42,6 +44,14 @@ def run(args):
                                    "min_area_ratio": args.min_area_ratio,
                                    "temporal_seconds": args.smoothing_ms / 1000,
                                })
+    if getattr(args, "floor_calibration", None):
+        with open(args.floor_calibration) as source:
+            data = json.load(source)
+        processor.effects.steps.mapping = FloorMapping(
+            data["image_points"], data["floor_points"])
+        processor.effects.steps.spacing = float(data.get("spacing", 35))
+        if processor.effects.steps.spacing <= 0:
+            raise ValueError("Floor step spacing must be positive")
     if args.calibration:
         processor.detector.load(args.calibration)
     camera = None
@@ -84,7 +94,9 @@ def run(args):
                 f"Cloak: {processor.detector.color} | "
                 f"Invisibility: {'ON' if processor.enabled else 'OFF'}",
                 status,
-                "B capture | I toggle | 1 green 2 red 3 blue | C calibrate | ESC exit",
+                "B capture | I toggle | G ghost | M steps | S sparkle | C calibrate | ESC exit",
+                f"Ghost {processor.effects.ghost} | Steps {processor.effects.footsteps} | "
+                f"Sparkles {processor.effects.sparkles}",
             ]
             for i, line in enumerate(lines):
                 position = (12, 28 + i * 28)
@@ -102,6 +114,12 @@ def run(args):
                 bg.start()
             elif key in (ord("i"), ord("I")):
                 processor.enabled = not processor.enabled
+            elif key in (ord("g"), ord("G")):
+                processor.effects.ghost = not processor.effects.ghost
+            elif key in (ord("m"), ord("M")):
+                processor.effects.footsteps = not processor.effects.footsteps
+            elif key in (ord("s"), ord("S")):
+                processor.effects.sparkles = not processor.effects.sparkles
             elif key in (ord("1"), ord("2"), ord("3")):
                 processor.detector.set_preset({49: "green", 50: "red", 51: "blue"}[key])
                 if calibrating:
@@ -123,6 +141,7 @@ def run(args):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--floor-calibration", help="Four-point floor mapping JSON")
     parser.add_argument("--camera", type=int, help="Device index; default probes 0–3")
     parser.add_argument("--width", type=int, default=1280)
     parser.add_argument("--height", type=int, default=720)
