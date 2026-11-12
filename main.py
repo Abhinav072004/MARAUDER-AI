@@ -1,4 +1,4 @@
-"""MARAUDER AI Phase 1 desktop entry point."""
+"""MARAUDER AI desktop entry point."""
 
 import argparse
 import logging
@@ -12,7 +12,7 @@ from config.settings import Settings
 from core.camera import Camera
 from core.frame_processor import FrameProcessor
 
-WINDOW = "MARAUDER AI | Phase 1"
+WINDOW = "MARAUDER AI | Cloak preview"
 CALIBRATION = "HSV calibration | Q to save and close"
 SLIDERS = ("H low", "S low", "V low", "H high", "S high", "V high")
 
@@ -35,7 +35,13 @@ def run(args):
         os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")
     ):
         raise RuntimeError("No desktop display. Run locally in a graphical session.")
-    processor = FrameProcessor(args.color, settings.background_frames)
+    processor = FrameProcessor(args.color, settings.background_frames,
+                               refine=not args.raw_mask, mask_options={
+                                   "kernel_size": args.cleanup_size,
+                                   "feather_size": args.feather_size,
+                                   "min_area_ratio": args.min_area_ratio,
+                                   "temporal_seconds": args.smoothing_ms / 1000,
+                               })
     if args.calibration:
         processor.detector.load(args.calibration)
     camera = None
@@ -124,6 +130,16 @@ def main():
     parser.add_argument("--color", choices=("green", "red", "blue"), default="green")
     parser.add_argument("--calibration", help="Load an HSV calibration JSON file")
     parser.add_argument("--save-calibration", default="calibration.json")
+    parser.add_argument("--raw-mask", action="store_true",
+                        help="Disable Phase 2 refinement for comparison")
+    parser.add_argument("--cleanup-size", type=int, default=3,
+                        help="Opening/closing kernel width; positive odd integer")
+    parser.add_argument("--feather-size", type=int, default=5,
+                        help="Gaussian edge width; positive odd integer")
+    parser.add_argument("--min-area-ratio", type=float, default=0.0005,
+                        help="Minimum cloak contour area / frame area (0–1)")
+    parser.add_argument("--smoothing-ms", type=float, default=45,
+                        help="Temporal filter time constant in ms; 0 disables")
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
     try:

@@ -25,3 +25,20 @@ physical webcam. Record OS, Python version, camera, actual resolution and FPS.
 Pass Phase 1 only when a real camera produces the intended cloak illusion,
 capture/recapture and controls work, and resource cleanup succeeds. Log any
 failure before starting Phase 2. Current cloud validation lacks webcam hardware.
+
+## Phase 2 refinement acceptance
+
+Repeat the cloth demo with and without `--raw-mask` under the same lighting.
+Check isolated colour speckles disappear, small holes close, boundaries blend
+smoothly and large non-cloth holes remain visible. Move the cloth slowly and
+quickly, and record whether flicker improves and short temporal trails are
+acceptable. Change presets and recalibrate while moving: old silhouettes should
+not persist. Recapture and change resolution by restarting; confirm alignment.
+Record FPS at 720p and 480p with refinement enabled. No synthetic benchmark
+substitutes for these camera and display checks.
+
+Compare default 45 ms smoothing against `--smoothing-ms 0` during fast movement.
+Try `--cleanup-size 1 --feather-size 1` to isolate temporal filtering. Adjust
+`--min-area-ratio` if small cloth sections vanish. Toggle I off, move away, then
+toggle on: no old silhouette should reappear. Save/load HSV calibration and
+verify refinement still follows the chosen range.

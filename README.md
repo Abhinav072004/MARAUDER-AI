@@ -6,7 +6,7 @@ empty scene let the program replace a coloured cloth with background pixels.
 Only pixels matching the cloth colour disappear; exposed skin and other clothes
 remain visible. This is not physical invisibility or AI body removal.
 
-## Current scope: Phase 1
+## Current scope: Phases 1 and 2
 
 Implemented: webcam discovery, adjustable requested resolution, nonblocking
 multi-frame median background capture, locked background and recapture,
@@ -14,8 +14,10 @@ green/red/blue HSV detection (including red hue wraparound), normalized alpha
 compositing, invisibility toggle, FPS/processing-time display, HSV trackbars and
 JSON calibration, camera error reporting, and automated pipeline tests.
 
-Phase 2 (morphology, temporal smoothing, feathering and camera-movement warnings)
-has **not** started. Optical flow, footsteps, particles, gestures, speech, sound,
+Phase 2 adds morphological opening/closing, contour-area noise rejection,
+Gaussian edge feathering and time-aware temporal smoothing. Use `--raw-mask`
+to compare against the Phase 1 binary mask. Automatic camera-movement warnings
+remain future work. Optical flow, footsteps, particles, gestures, speech, sound,
 ghost/reveal/freeze/shield effects and the PySide6 GUI are future phases. Their
 packages reserve the architecture only; they contain no fake implementations.
 MediaPipe, PySide6 and audio packages are deliberately not installed before
@@ -71,7 +73,8 @@ the last background is replaced only when the new capture finishes.
 ## Cloak calibration
 
 Press **1**, **2**, or **3** for green, red, or blue. Press **C** to open six HSV
-trackbars and a live mask. White pixels will disappear; black pixels remain.
+trackbars and a live mask. White pixels will disappear; black pixels remain. Gray refined edges blend
+partially. Colour-bound changes reset temporal history to keep tuning responsive.
 Adjust H to include the cloth hue and S/V to reject pale or dark surroundings.
 OpenCV hue is 0–179; saturation/value are 0–255. H low greater than H high
 means a wrapped interval, useful for red. Invalid intermediate S/V ordering is
@@ -98,6 +101,28 @@ Focus an OpenCV window before using shortcuts.
 Voice commands (Lumos, Nox, Invisibility, Reveal), open-palm/fist gestures, and
 the G/M/S/V/T/R/H magical-mode keys are planned, **not available in Phase 1**.
 
+## Phase 2 refinement controls
+
+Refinement runs by default. Opening removes isolated speckles, closing repairs
+small gaps, contour filtering rejects tiny regions, Gaussian feathering softens
+boundaries, and a time-aware exponential filter reduces mask flicker.
+
+```bash
+python main.py --color green --cleanup-size 3 --feather-size 5 --smoothing-ms 45
+python main.py --raw-mask                 # Phase 1 comparison
+python main.py --smoothing-ms 0           # No temporal trailing
+python main.py --min-area-ratio 0.001     # Reject regions below 0.1% frame area
+```
+
+Cleanup and feather sizes must be positive odd integers; 1 disables the
+corresponding spatial operation. `--smoothing-ms` must be finite and nonnegative.
+Larger values smooth more but lag movement. Area ratio must be between 0 and 1.
+Area is measured using OpenCV contour area, not a count of foreground pixels.
+Oversized kernels/thresholds can erase small cloak details. Colour calibration,
+capture, toggling invisibility and resolution changes reset temporal history.
+No new dependencies are required. Real-cloth performance and appearance still
+need the manual webcam acceptance check.
+
 ## Tests
 
 ```bash
@@ -110,8 +135,9 @@ invalid configuration, median capture and locking, recapture, alpha
 compositing, full pipeline replacement, toggle, resolution invalidation and
 camera failure/release. They use generated frames and controlled device doubles;
 they do not establish physical-webcam quality or a real-device FPS target.
-See [the manual acceptance guide](docs/manual_testing.md) before advancing to
-Phase 2.
+Refinement tests additionally cover noise rejection, hole preservation, soft
+edges, temporal decay, frame-rate independence and colour-change history reset.
+See [the manual acceptance guide](docs/manual_testing.md) for hardware validation.
 
 ## Architecture
 
@@ -140,8 +166,10 @@ and the roadmap. The Apache 2.0 license remains unchanged.
   A headless environment can run tests, but cannot demonstrate a physical camera.
 - **No invisibility:** capture the background first and check the selected colour,
   I toggle and calibration mask. Black/dark cloth usually lacks useful saturation.
-- **Holes, jagged edges or flicker:** improve lighting and cloth saturation. Phase 1
-  uses a direct HSV mask; refinement belongs to Phase 2.
+- **Holes, jagged edges or flicker:** improve lighting and cloth saturation. Refinement
+  reduces noise and flicker, but cannot recover cloth pixels outside the HSV
+  range. Temporal smoothing can leave a short trail during fast motion; use
+  `--raw-mask` for comparison.
 - **Background objects disappear:** they share the keyed colour. Change cloth,
   background or HSV bounds. There is no semantic person segmentation yet.
 - **Misalignment:** keep the camera still and recapture. Movement is not
@@ -162,6 +190,5 @@ not generated evidence. Use your OS screen recorder to record background capture
 entering the frame, I toggling and recapture. Keep the camera fixed and record
 the displayed FPS. No demo recording or real-webcam validation is claimed here.
 
-Next, only after the physical Phase 1 acceptance check: mask refinement and
-feathering; motion-linked effects; asynchronous voice/MediaPipe interaction;
+Next, after physical webcam acceptance of the core and refinement: motion-linked effects; asynchronous voice/MediaPipe interaction;
 additional modes and desktop GUI; then performance profiling and demonstration.

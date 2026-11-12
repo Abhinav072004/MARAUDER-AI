@@ -71,7 +71,7 @@ def test_alpha_compositing_and_missing_background():
 
 
 def test_complete_pipeline_and_toggle():
-    engine = FrameProcessor(background_frames=3)
+    engine = FrameProcessor(background_frames=3, refine=False)
     background = np.full((48, 64, 3), (50, 40, 30), np.uint8)
     engine.background.start()
     for _ in range(3):
