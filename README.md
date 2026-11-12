@@ -30,6 +30,20 @@ software validation is complete for the checks below; **physical webcam, cloth,
 hands, speech, microphone and speaker acceptance is still outstanding** in this
 camera-less cloud environment. See [validation](docs/validation.md).
 
+## Browser edition and hosting
+
+`web/` is a self-contained browser companion: webcam permission, local-only HSV
+processing, median background capture, mask cleanup/feathering, colour calibration,
+intensity and ghost/footsteps/sparkles/reveal/shield/freeze controls. It has an
+explicit synthetic demo and a responsive layout. Camera frames are never uploaded.
+Browser footsteps use measured cloak-bound displacement; the Python edition also
+has optical flow and floor mapping. Offline voice, MediaPipe and the PySide6 GUI
+remain desktop features and are not advertised as browser capabilities.
+
+The [Pages deployment workflow](.github/workflows/pages.yml) runs browser tests
+before publishing static assets. See [deployment instructions](docs/deployment.md).
+A committed workflow is not proof that GitHub Pages is enabled or a URL is live.
+
 ## Installation
 
 Use **Python 3.11 or 3.12** (3.12 validated here). The pinned MediaPipe/NumPy

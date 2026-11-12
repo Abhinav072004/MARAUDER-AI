@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#10131f">
+  <meta name="description" content="A magical colour-key invisibility lab. Try a demo or use your webcam with local-only video processing.">
+  <title>MARAUDER AI · Invisibility Lab</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%2310131f'/%3E%3Cpath d='m32 8 6 18 18 6-18 6-6 18-6-18-18-6 18-6Z' fill='%23e2c785'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="style.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="./" aria-label="Marauder AI home"><span class="brand-icon">✦</span> MARAUDER <span>AI</span></a>
+    <span class="edition">THE INVISIBILITY LAB</span>
+    <a class="repo" href="https://github.com/Abhinav072004/MARAUDER-AI" target="_blank" rel="noopener noreferrer">View project ↗</a>
+  </header>
+  <main>
+    <section class="intro">
+      <div><p class="eyebrow">A LITTLE SCIENCE. A LITTLE MAGIC.</p><h1>Now you see me.<br><span>Now you don’t.</span></h1><p class="description">Turn a coloured cloth into an invisibility cloak.<br>Capture your background. Step into the extraordinary.</p></div>
+      <div class="privacy"><span class="privacy-dot"></span><div><strong>Your camera stays yours.</strong><small>Video is processed in your browser.<br>No uploads. No account required.</small></div></div>
+    </section>
+    <div class="lab">
+      <section class="stage" aria-label="Live invisibility preview">
+        <div class="stage-bar"><span><i class="live-dot"></i> <span id="source">LAB OFFLINE</span></span><span id="fps">— FPS</span></div>
+        <div class="viewport">
+          <canvas id="preview" width="640" height="480" aria-label="Processed camera or synthetic demo preview"></canvas>
+          <div id="welcome" class="welcome"><div class="orb">✦</div><h2>Your cloak awaits.</h2><p>A steady camera. A vibrant cloth.<br>That’s all the magic needs.</p><button id="start" class="primary">◉ &nbsp; Start camera</button><button id="demo" class="secondary">Try a synthetic demo ↗</button><small>Camera access requires your permission.</small></div>
+          <span id="demo-label" class="demo-label" hidden>SYNTHETIC DEMO · NOT A WEBCAM</span>
+          <span id="freeze-label" class="freeze-label" hidden>❄ TIME FROZEN</span>
+        </div>
+        <div class="stage-status"><span id="status" role="status" aria-live="polite">Choose your camera or explore the demo.</span><button id="stop" disabled>Stop camera</button></div>
+        <div class="instructions"><span><b>01</b> Keep the camera fixed</span><span><b>02</b> Capture an empty scene</span><span><b>03</b> Wear your coloured cloth</span></div>
+      </section>
+      <aside class="controls" aria-label="Magical controls">
+        <div class="panel-heading"><span>YOUR SPELLBOOK</span><span>✧</span></div>
+        <button id="capture" class="capture" disabled>▧ &nbsp; Capture background <kbd>B</kbd></button>
+        <p class="hint">Step out of view before capturing.</p>
+        <div class="control-row"><label for="invisible">Invisibility</label><input id="invisible" type="checkbox" checked role="switch"></div>
+        <label class="field-label" for="color">Cloak colour</label>
+        <div class="select-wrap"><select id="color"><option value="green">🟢 &nbsp; Emerald green</option><option value="red">🔴 &nbsp; Crimson red</option><option value="blue">🔵 &nbsp; Midnight blue</option></select></div>
+        <div class="slider-label"><label for="intensity">Invisibility intensity</label><output id="intensity-value">100%</output></div>
+        <input id="intensity" type="range" min="0" max="100" value="100">
+        <h3>CHOOSE YOUR MAGIC</h3>
+        <div class="modes">
+          <button class="mode" data-mode="ghost" aria-pressed="false"><span>♧</span><div>Ghost<small>Translucent shimmer</small></div><kbd>G</kbd></button>
+          <button class="mode" data-mode="steps" aria-pressed="false"><span>♧</span><div>Footsteps<small>Follow your movement</small></div><kbd>M</kbd></button>
+          <button class="mode" data-mode="sparkles" aria-pressed="false"><span>✦</span><div>Sparkles<small>A trail of golden light</small></div><kbd>S</kbd></button>
+          <button class="mode" data-mode="reveal" aria-pressed="false"><span>◈</span><div>Reveal<small>A glowing silhouette</small></div><kbd>R</kbd></button>
+          <button class="mode" data-mode="shield" aria-pressed="false"><span>◎</span><div>Shield<small>Circles of protection</small></div><kbd>H</kbd></button>
+          <button class="mode" data-mode="freeze" aria-pressed="false"><span>❄</span><div>Time freeze<small>Hold this moment</small></div><kbd>T</kbd></button>
+        </div>
+        <details id="calibration"><summary>Fine-tune the cloak <kbd>C</kbd></summary>
+          <p class="hint">H: 0–179. A low hue above the high hue wraps through red. S/V: 0–255.</p>
+          <div id="hsv-controls"></div>
+          <div class="control-row"><label for="mask-view">Show mask</label><input id="mask-view" type="checkbox"></div>
+          <div class="control-row"><label for="smooth">Smooth edges</label><input id="smooth" type="checkbox" checked></div>
+          <div class="control-row"><label for="sound">Spell sounds</label><input id="sound" type="checkbox"></div>
+          <button id="reset" class="secondary">Reset selected preset</button>
+        </details>
+        <p class="browser-note">Browser edition · colour-key illusion<br>For offline voice and MediaPipe controls, use the <a href="https://github.com/Abhinav072004/MARAUDER-AI#installation">Python desktop app ↗</a>.</p>
+      </aside>
+    </div>
+    <footer><span>BUILT BY ABHINAV SINGH</span><span>Real computer vision. Imaginary superpowers.</span><a href="https://github.com/Abhinav072004/MARAUDER-AI/blob/main/docs/manual_testing.md">Setup & troubleshooting ↗</a></footer>
+  </main>
+  <video id="camera" autoplay playsinline muted hidden></video>
+</body>
+</html>
