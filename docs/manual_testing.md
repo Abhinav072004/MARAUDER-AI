@@ -1,44 +1,51 @@
-# Phase 1 webcam acceptance checklist
+# Physical-device acceptance and demonstration
 
-Run `python main.py --camera 0 --width 1280 --height 720` on a desktop with a
-physical webcam. Record OS, Python version, camera, actual resolution and FPS.
+These checks require a physical webcam, cloth and desktop. Optional interaction
+checks require visible hands, a microphone, speaker and an unpacked Vosk model.
+The cloud environment supplies none of those physical inputs. Record OS, Python,
+camera, actual resolution, illumination, enabled modes, average FPS and latency.
 
-1. Before B, verify the missing-background warning and unchanged live feed.
-2. Clear the scene, press B, remain out of view until capture completes. Check
-   the capture counter and locked status. Enter the frame with a green cloth.
-3. Confirm cloth pixels reveal the correct static background and unkeyed
-   clothing/skin remain visible. Toggle I twice; compare effect on/off.
-4. Test red (including a bright red fabric) with 2 and blue with 3. Press C,
-   tune HSV while checking white/black regions, Q to save; restart with
-   `--calibration calibration.json` and verify matching behaviour.
-5. Clear the scene, change a background object, press B and confirm replacement
-   uses the new scene. Move the camera and observe expected misalignment;
-   recapture. Phase 1 does not detect camera/background motion automatically.
-6. Close calibration using its window controls; reopen with C. Test Q saving,
-   preset reset, uppercase B/I/C/Q, Escape and closing the main window.
-7. Unplug the webcam while running: verify an explicit error and nonzero exit.
-   Restart with an unavailable index: verify a useful error without hanging.
-8. Measure at least 60 seconds of ordinary operation at 720p and 480p. Record
-   FPS and processing time separately from background-capture timing. Do not
-   infer a laptop performance guarantee from synthetic cloud tests.
+1. Start `python main.py --gui --width 640 --height 480`. Before B verify the
+   missing-background message and unchanged live scene. Clear the entire view,
+   capture and wait for Background locked. Enter with green cloth. Cloth pixels
+   must reveal the spatially correct background; exposed skin stays visible.
+2. Toggle I twice. Capture a changed empty scene and verify the new background.
+   Try an invalid camera index and physically disconnect while running: expect
+   an explicit error and resource release. Restart after reconnection.
+3. Select red/blue and calibrate HSV. Verify wrapped red hues, white/gray/black
+   mask preview and save/load persistence. Try both GUI and OpenCV interfaces.
+4. Compare default refinement to `--raw-mask` and `--smoothing-ms 0`. Inspect
+   speckles, large holes, edges and movement lag. Tune minimum area and kernel
+   sizes for your cloth. Change presets/toggle I: old silhouettes must not linger.
+5. Keep the camera fixed and move the cloth horizontally. G should make it
+   translucent and shimmering. M should emit steps following movement, with none
+   from a stationary cloak; older steps fade. S should emit more boundary particles
+   during faster movement. Check floor mapping against measured planar corners.
+6. Test P, particle palette/intensity and reveal/heatmap. Check H with O off (cloth
+   bounds) and on (visible pose). Occlude the person: shield should fall back
+   appropriately. Test E both ways; disable it if loose cloth is rejected.
+7. T freezes only visual output. Continue moving and recapture; unfreeze and
+   verify fresh camera output and responsive controls. Change replacement
+   intensity 0/50/100%; test with decorative modes off for a pure blend comparison.
+8. J: hold an open palm and then fist. Verify three-observation stability and
+   cooldown; ambiguous gestures should not repeatedly toggle. Test several
+   orientations and note classification failures.
+9. Choose an offline English Vosk model, V on, and speak Invisibility/Reveal.
+   Then test Lumos/Nox if the model vocabulary supports them. Check background
+   noise, silence, microphone denial, missing model and disconnect. Camera must
+   remain responsive. Reveal must clear modes/freeze. No audio should be uploaded.
+10. Listen for distinct activation/deactivation chimes only on state changes;
+    A mutes them. Check missing output device handling. A dummy audio test does
+    not establish audible playback.
+11. Move the camera or change lighting/background substantially: wait for the
+    conservative warning, clear the scene and recapture. Large unkeyed foreground
+    objects may also trigger it. It is not automatic stabilization.
+12. Run for at least 60 seconds at 480p and 720p, core and combined modes. Record
+    FPS/processing time separately from capture/inference/preview costs. Close the
+    GUI and confirm camera light turns off and workers release resources.
 
-Pass Phase 1 only when a real camera produces the intended cloak illusion,
-capture/recapture and controls work, and resource cleanup succeeds. Log any
-failure before starting Phase 2. Current cloud validation lacks webcam hardware.
-
-## Phase 2 refinement acceptance
-
-Repeat the cloth demo with and without `--raw-mask` under the same lighting.
-Check isolated colour speckles disappear, small holes close, boundaries blend
-smoothly and large non-cloth holes remain visible. Move the cloth slowly and
-quickly, and record whether flicker improves and short temporal trails are
-acceptable. Change presets and recalibrate while moving: old silhouettes should
-not persist. Recapture and change resolution by restarting; confirm alignment.
-Record FPS at 720p and 480p with refinement enabled. No synthetic benchmark
-substitutes for these camera and display checks.
-
-Compare default 45 ms smoothing against `--smoothing-ms 0` during fast movement.
-Try `--cleanup-size 1 --feather-size 1` to isolate temporal filtering. Adjust
-`--min-area-ratio` if small cloth sections vanish. Toggle I off, move away, then
-toggle on: no old silhouette should reappear. Save/load HSV calibration and
-verify refinement still follows the chosen range.
+Use an OS screen recorder for the hardware demonstration. Show an empty capture,
+cloth entry, I comparison, HSV adjustment and G/M/S interaction, followed by
+additional modes and voice/gestures. Keep the camera still. Add actual physical
+screenshots to the README only after this checklist passes; the existing desktop
+screenshot and headless recording are explicitly synthetic.

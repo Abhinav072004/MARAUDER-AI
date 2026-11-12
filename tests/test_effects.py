@@ -1,4 +1,5 @@
 """Deterministic effects and measured-motion tests without physical devices."""
+
 import cv2
 import numpy as np
 import pytest
@@ -50,8 +51,11 @@ def test_optical_flow_follows_translated_texture():
     tracker = MotionTracker()
     tracker.update(frame, mask, 0.1)
     transform = np.float32([[1, 0, 5], [0, 1, 0]])
-    moved = tracker.update(cv2.warpAffine(frame, transform, (200, 160)),
-                           cv2.warpAffine(mask, transform, (200, 160)), 0.1)
+    moved = tracker.update(
+        cv2.warpAffine(frame, transform, (200, 160)),
+        cv2.warpAffine(mask, transform, (200, 160)),
+        0.1,
+    )
     assert moved.velocity[0] == pytest.approx(50, abs=3)
     assert abs(moved.velocity[1]) < 3
     assert moved.position == (80.0, 119.0)
@@ -59,8 +63,9 @@ def test_optical_flow_follows_translated_texture():
 
 
 def test_floor_mapping_round_trip_and_invalid_input():
-    mapping = FloorMapping([(0, 0), (100, 0), (80, 100), (20, 100)],
-                           [(0, 0), (100, 0), (100, 100), (0, 100)])
+    mapping = FloorMapping(
+        [(0, 0), (100, 0), (80, 100), (20, 100)], [(0, 0), (100, 0), (100, 100), (0, 100)]
+    )
     point = (40, 60)
     assert mapping.to_image(mapping.to_floor(point)) == pytest.approx(point)
     with pytest.raises(ValueError):

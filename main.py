@@ -25,9 +25,7 @@ def open_calibration(detector):
     # Red's two preset intervals become one wrapped interval for editing.
     if detector.color == "red":
         lower, upper = (170, 100, 50), (10, 255, 255)
-    for name, value, maximum in zip(
-        SLIDERS, (*lower, *upper), (179, 255, 255, 179, 255, 255)
-    ):
+    for name, value, maximum in zip(SLIDERS, (*lower, *upper), (179, 255, 255, 179, 255, 255)):
         cv2.createTrackbar(name, CALIBRATION, value, maximum, lambda _: None)
 
 
@@ -44,8 +42,11 @@ def run(args):
     fps = 0.0
     previous = perf_counter()
     try:
-        camera = (DemoCamera(settings.width, settings.height)
-                  if args.demo else Camera(args.camera, settings.width, settings.height))
+        camera = (
+            DemoCamera(settings.width, settings.height)
+            if args.demo
+            else Camera(args.camera, settings.width, settings.height)
+        )
         if args.demo:
             processor.background.start()
         cv2.namedWindow(WINDOW, cv2.WINDOW_NORMAL)
@@ -82,7 +83,7 @@ def run(args):
                 f"{frame.shape[1]}x{frame.shape[0]} | camera {camera.index}",
                 f"Cloak: {processor.detector.color} | "
                 f"Invisibility: {'ON' if processor.enabled else 'OFF'}",
-                status,
+                processor.warning or status,
                 "B capture | I toggle | G ghost | M steps | S sparkle | C calibrate | ESC exit",
                 f"Ghost {processor.effects.ghost} | Steps {processor.effects.footsteps} | "
                 f"Sparkles {processor.effects.sparkles}",
@@ -90,10 +91,19 @@ def run(args):
             ]
             for i, line in enumerate(lines):
                 position = (12, 28 + i * 28)
-                cv2.putText(output, line, position, cv2.FONT_HERSHEY_SIMPLEX,
-                            0.6, (0, 0, 0), 4, cv2.LINE_AA)
-                cv2.putText(output, line, position, cv2.FONT_HERSHEY_SIMPLEX,
-                            0.6, (100, 230, 255), 1, cv2.LINE_AA)
+                cv2.putText(
+                    output, line, position, cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 4, cv2.LINE_AA
+                )
+                cv2.putText(
+                    output,
+                    line,
+                    position,
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.6,
+                    (100, 230, 255),
+                    1,
+                    cv2.LINE_AA,
+                )
             cv2.imshow(WINDOW, output)
             if calibrating:
                 cv2.imshow(CALIBRATION, mask)
@@ -124,6 +134,12 @@ def run(args):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--opencv-threads",
+        type=int,
+        default=2,
+        help="OpenCV worker threads; positive integer (default 2)",
+    )
     parser.add_argument("--gui", action="store_true", help="Use the PySide6 desktop interface")
     parser.add_argument("--demo", action="store_true", help="Use an explicitly synthetic source")
     parser.add_argument("--voice-model", help="Unpacked offline Vosk model directory")
@@ -135,21 +151,39 @@ def main():
     parser.add_argument("--color", choices=("green", "red", "blue"), default="green")
     parser.add_argument("--calibration", help="Load an HSV calibration JSON file")
     parser.add_argument("--save-calibration", default="calibration.json")
-    parser.add_argument("--raw-mask", action="store_true",
-                        help="Disable Phase 2 refinement for comparison")
-    parser.add_argument("--cleanup-size", type=int, default=3,
-                        help="Opening/closing kernel width; positive odd integer")
-    parser.add_argument("--feather-size", type=int, default=5,
-                        help="Gaussian edge width; positive odd integer")
-    parser.add_argument("--min-area-ratio", type=float, default=0.0005,
-                        help="Minimum cloak contour area / frame area (0–1)")
-    parser.add_argument("--smoothing-ms", type=float, default=45,
-                        help="Temporal filter time constant in ms; 0 disables")
+    parser.add_argument(
+        "--raw-mask", action="store_true", help="Disable Phase 2 refinement for comparison"
+    )
+    parser.add_argument(
+        "--cleanup-size",
+        type=int,
+        default=3,
+        help="Opening/closing kernel width; positive odd integer",
+    )
+    parser.add_argument(
+        "--feather-size", type=int, default=5, help="Gaussian edge width; positive odd integer"
+    )
+    parser.add_argument(
+        "--min-area-ratio",
+        type=float,
+        default=0.0005,
+        help="Minimum cloak contour area / frame area (0–1)",
+    )
+    parser.add_argument(
+        "--smoothing-ms",
+        type=float,
+        default=45,
+        help="Temporal filter time constant in ms; 0 disables",
+    )
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
     try:
+        if args.opencv_threads < 1:
+            raise ValueError("OpenCV thread count must be positive")
+        cv2.setNumThreads(args.opencv_threads)
         if args.gui:
             from gui.main_window import launch
+
             return launch(args)
         run(args)
     except KeyboardInterrupt:

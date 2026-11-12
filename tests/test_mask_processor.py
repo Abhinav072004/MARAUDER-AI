@@ -58,10 +58,15 @@ def test_temporal_response_is_frame_rate_independent():
     assert np.array_equal(*results)
 
 
-@pytest.mark.parametrize("kwargs", [
-    {"kernel_size": 2}, {"feather_size": 0},
-    {"min_area_ratio": -1}, {"temporal_seconds": float("nan")},
-])
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"kernel_size": 2},
+        {"feather_size": 0},
+        {"min_area_ratio": -1},
+        {"temporal_seconds": float("nan")},
+    ],
+)
 def test_invalid_parameters(kwargs):
     with pytest.raises(ValueError):
         MaskProcessor(**kwargs)
@@ -100,8 +105,7 @@ def test_toggle_resets_temporal_history():
 
 
 def test_capture_completion_resets_history():
-    engine = FrameProcessor(background_frames=3,
-                            mask_options={"temporal_seconds": 100})
+    engine = FrameProcessor(background_frames=3, mask_options={"temporal_seconds": 100})
     engine.process(np.full((40, 40, 3), (0, 255, 0), np.uint8))
     engine.background.start()
     for _ in range(3):

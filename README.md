@@ -1,274 +1,311 @@
-# MARAUDER AI – The Intelligent Magical Invisibility System
+# MARAUDER AI — The Intelligent Magical Invisibility System
 
-A Python/OpenCV prototype inspired by Harry Potter's invisibility cloak. This is
-a colour-key compositing illusion: a **static camera** and a previously captured
-empty scene let the program replace a coloured cloth with background pixels.
-Only pixels matching the cloth colour disappear; exposed skin and other clothes
-remain visible. This is not physical invisibility or AI body removal.
+A real-time Python computer-vision illusion inspired by Harry Potter's cloak.
+A **fixed camera** records an empty scene, then HSV colour segmentation replaces
+matching cloth pixels with that saved background. It is not physical
+invisibility: uncovered skin and clothing remain visible.
 
-## Current scope: Phases 1 and 2
+![Actual PySide6 application using an explicitly synthetic scene](docs/images/synthetic-desktop.png)
 
-Implemented: webcam discovery, adjustable requested resolution, nonblocking
-multi-frame median background capture, locked background and recapture,
-green/red/blue HSV detection (including red hue wraparound), normalized alpha
-compositing, invisibility toggle, FPS/processing-time display, HSV trackbars and
-JSON calibration, camera error reporting, and automated pipeline tests.
+## Features
 
-Phase 2 adds morphological opening/closing, contour-area noise rejection,
-Gaussian edge feathering and time-aware temporal smoothing. Use `--raw-mask`
-to compare against the Phase 1 binary mask. Automatic camera-movement warnings
-remain future work. Optical flow, footsteps, particles, gestures, speech, sound,
-ghost/reveal/freeze/shield effects and the PySide6 GUI are future phases. Their
-packages reserve the architecture only; they contain no fake implementations.
-MediaPipe, PySide6 and audio packages are deliberately not installed before
-their implementation phases.
+- Webcam discovery, requested resolution, FPS and processing-time monitoring.
+- Multi-frame median background capture, recapture, locking and conservative
+  warnings when substantial visible background changes persist.
+- Green, red (wrapped hue) and blue keys; live HSV calibration and JSON save/load.
+- Morphological cleanup, contour filtering, feathered edges and time-aware smoothing.
+- Ghost/Predator transparency, cyan shimmer, motion-driven golden sparkle trail.
+- Measured-motion footsteps using optical flow with silhouette-motion fallback;
+  optional four-point floor homography.
+- Offline Vosk commands, MediaPipe open-palm/fist controls and synthesized chimes.
+- Ambient gold/purple/blue particles, pulsing reveal/heatmap, output freeze,
+  animated shield, optional pose anchoring and person-mask refinement.
+- Dark PySide6 desktop with live output/mask, camera/status/mode indicators,
+  calibration, mode controls and invisibility/particle intensity sliders.
+- Lightweight OpenCV interface, explicit synthetic demo, headless video recorder,
+  automated tests and profiling tools.
+
+All six implementation phases are represented in separate commits. Automated
+software validation is complete for the checks below; **physical webcam, cloth,
+hands, speech, microphone and speaker acceptance is still outstanding** in this
+camera-less cloud environment. See [validation](docs/validation.md).
 
 ## Installation
 
-Use Python 3.11 or newer on a desktop machine with a webcam. Python 3.12 is the
-tested interpreter in the cloud development environment.
+Use **Python 3.11 or 3.12** (3.12 validated here). The pinned MediaPipe/NumPy
+combination is not intended for newer Python versions. Use a fresh environment:
 
 ```bash
 cd MARAUDER-AI
 python -m venv .venv
-# Linux/macOS:
 source .venv/bin/activate
-# Windows PowerShell instead:
-# .venv\Scripts\Activate.ps1
-python -m pip install -r requirements.txt
-python main.py --color green
+# Windows PowerShell instead: .venv\Scripts\Activate.ps1
+python -m pip install -r requirements-gui.txt
+python main.py --gui --width 640 --height 480
 ```
 
-Pinned runtime packages: NumPy 2.2.6 and OpenCV 4.12.0.88. Install
-`opencv-python`, not its headless variant: HighGUI windows are required. Linux
-desktop installations may need their distribution's OpenGL/X11 runtime packages
-(for example `libgl1` and `libxcb-cursor0`). A browser-only or headless cloud
-session does not supply your laptop's webcam automatically.
+Installation choices:
+
+| File | What it installs |
+| --- | --- |
+| `requirements.txt` | NumPy 1.26.4 and OpenCV contrib 4.11.0.86; lightweight core/effects |
+| `requirements-interaction.txt` | Core + MediaPipe 0.10.21, Vosk 0.3.45, sounddevice 0.5.1, Pygame 2.6.1 |
+| `requirements-gui.txt` | Interaction stack + PySide6 6.8.3 |
+| `requirements-dev.txt` | Core + pytest 8.4.2 and Ruff 0.11.13 |
+| `requirements-lock.txt` | Exact installed full development stack from Linux/Python 3.12 |
+
+Do **not** mix `opencv-python`, `opencv-python-headless` and
+`opencv-contrib-python`: they all own `cv2`. If updating the earlier Phase 1/2
+environment, uninstall `opencv-python` before installing the current requirements,
+or create a new environment. OpenCV contrib includes the same HighGUI/core API
+and satisfies MediaPipe's dependency without installing two conflicting wheels.
+Linux may need `libgl1`, `libegl1`, `libxcb-cursor0` for desktop rendering and
+`libportaudio2` for microphone input, installed with your OS package manager.
+
+The application needs no API keys or cloud services. Only package installation
+and manual offline-model download require network access.
+
+## Run and set up the webcam
 
 ```bash
-python main.py --camera 0 --width 640 --height 480 --background-frames 15
-python main.py --calibration calibration.json
+python main.py --gui --camera 0 --width 1280 --height 720
+python main.py --color green --width 640 --height 480  # OpenCV interface
 python main.py --help
 ```
 
-Without `--camera`, indices 0–3 are probed until a readable device is found.
-Resolution is a request to the driver; the on-screen dimensions show the actual
-frames. Keep the camera securely fixed and avoid automatic exposure changes.
+Without `--camera`, indices 0–3 are tried until a readable camera is found.
+Dimensions are driver requests; actual dimensions are reflected by the preview.
+A remote cloud desktop does not automatically receive your laptop's webcam.
 
-## Capture the background and use the cloak
+1. Fix the camera in place, light the scene evenly and avoid cloth colours that
+   appear in the background. Close other apps using the camera.
+2. Leave the entire view empty, including the cloth. Press **B** or the capture
+   button. Capture begins immediately; have another person press it if needed.
+3. Stay out until **Background locked** appears. The default median uses 21
+   frames; `--background-frames 15` reduces capture memory/time.
+4. Enter wearing the selected cloth. Press **I** to compare the live image and
+   invisibility. Only matched cloth pixels disappear.
+5. Recapture after camera movement, background changes or large exposure changes.
+   Background remains locked until recapture completes. A median cannot recover
+   a region that was obscured throughout capture.
 
-1. Light the scene evenly and select a saturated cloth unlike the background.
-2. Leave the camera view completely empty, including the cloth. Press **B**.
-3. Stay out until the capture counter changes to **Background locked** (21
-   frames by default). The per-pixel median reduces transient noise; it cannot
-   reconstruct a scene obscured throughout capture.
-4. Enter wearing the selected cloth. Matching pixels now show the saved scene.
-5. Press **I** to compare against the original. Clear the scene and press **B**
-   again after any camera movement or lighting/background change.
+## Colour calibration and edge quality
 
-Capture is initiated immediately, without a countdown. Have someone press B
-while you stand outside the view. Normal output is shown while recapturing;
-the last background is replaced only when the new capture finishes.
+Select green, red or blue in the GUI or with **1/2/3**. Press **C** to focus GUI
+calibration or open OpenCV trackbars. White in the alpha-mask preview means full
+replacement, black means unchanged, and gray means partial blending. Tune hue
+for the cloth and saturation/value to exclude pale or dark surroundings.
 
-## Cloak calibration
+OpenCV H is 0–179 and S/V are 0–255. H low greater than H high wraps through
+zero, supporting red. GUI rejects intermediate inverted S/V ranges; OpenCV
+trackbars clamp them internally. GUI Save/Load buttons persist calibration;
+in the OpenCV interface **Q** saves and closes the calibration window.
 
-Press **1**, **2**, or **3** for green, red, or blue. Press **C** to open six HSV
-trackbars and a live mask. White pixels will disappear; black pixels remain. Gray refined edges blend
-partially. Colour-bound changes reset temporal history to keep tuning responsive.
-Adjust H to include the cloth hue and S/V to reject pale or dark surroundings.
-OpenCV hue is 0–179; saturation/value are 0–255. H low greater than H high
-means a wrapped interval, useful for red. Invalid intermediate S/V ordering is
-clamped internally to a valid interval. Calibration edits apply live.
+```bash
+python main.py --calibration calibration.json
+python main.py --save-calibration my-cloth.json
+python main.py --cleanup-size 3 --feather-size 5 --smoothing-ms 45
+python main.py --raw-mask                    # Compare Phase 1 segmentation
+python main.py --smoothing-ms 0              # Remove temporal trailing
+python main.py --min-area-ratio 0.001        # Reject contours below 0.1% frame area
+```
 
-Press **Q** to save `calibration.json` and close calibration. Supply
-`--save-calibration PATH` to choose another output, and `--calibration PATH` to
-load it next time. Closing the calibration window keeps the current values in
-memory but does not save. Preset keys reset the bounds and close calibration.
+Spatial kernel sizes must be positive odd integers; 1 disables the corresponding
+operation. Larger smoothing time constants reduce flicker but increase lag.
+Min-area ratio is a frame-area fraction measured using OpenCV contour area.
+Capture, colour/resolution changes and invisibility toggles reset mask history.
+The person gate (**E**) optionally suppresses keyed background objects using a
+small MediaPipe model. When enabled, reveal uses its person silhouette instead
+of the default cloak silhouette. HSV stays primary; gating can wrongly exclude loose cloth,
+so leave it off unless it improves your particular scene.
 
-## Phase 1 keyboard reference
+## Keyboard and GUI controls
 
-Focus an OpenCV window before using shortcuts.
+Focus the preview/window before using keys. GUI sliders and buttons expose the
+same modes. The panel scrolls to additional controls on smaller displays.
 
 | Key | Action |
 | --- | --- |
 | B | Capture/recapture empty background |
 | I | Toggle invisibility |
+| G | Ghost/Predator partial replacement and shimmering edge |
+| M | Movement-linked fading footsteps |
+| S | Golden boundary sparkle trail |
+| V | Toggle offline voice |
+| T | Freeze/resume rendered frame; camera continues |
+| R | Glowing reveal silhouette |
+| H | Animated energy shield |
+| C | Open/focus HSV calibration |
 | 1 / 2 / 3 | Green / red / blue preset |
-| C | Open manual HSV calibration |
-| Q | Save and close calibration |
-| Escape | Exit and release webcam |
+| J | Toggle MediaPipe hand gestures |
+| A | Toggle sound |
+| P | Ambient particles |
+| O | Optional MediaPipe Pose shield anchoring |
+| E | Optional person-mask gate |
+| Q | OpenCV only: save and close calibration |
+| Escape | Exit and release resources |
 
-Voice commands (Lumos, Nox, Invisibility, Reveal), open-palm/fist gestures, and
-the G/M/S/V/T/R/H magical-mode keys are planned, **not available in Phase 1**.
+GUI sliders set invisibility replacement to 0–100% and particle emission to
+0–300%. Separate effects such as reveal/shield remain independent of replacement
+intensity. Ghost replacement is half the selected invisibility intensity. The
+GUI also chooses particle colour and heatmap reveal. Shield falls back to measured
+cloth bounds when pose is off or absent. Only output is frozen; FPS/status and
+capture continue. Reveal mode intentionally takes priority over ghost rendering.
 
-## Phase 2 refinement controls
+## Voice, gestures and audio
 
-Refinement runs by default. Opening removes isolated speckles, closing repairs
-small gaps, contour filtering rejects tiny regions, Gaussian feathering softens
-boundaries, and a time-aware exponential filter reduces mask flicker.
+Vosk runs **offline in a background thread**, with bounded audio/command queues.
+Download/unpack an English model from the [official catalogue](https://alphacephei.com/vosk/models)
+and pass its directory, or choose it in the GUI:
 
 ```bash
-python main.py --color green --cleanup-size 3 --feather-size 5 --smoothing-ms 45
-python main.py --raw-mask                 # Phase 1 comparison
-python main.py --smoothing-ms 0           # No temporal trailing
-python main.py --min-area-ratio 0.001     # Reject regions below 0.1% frame area
+python main.py --gui --voice-model /path/to/vosk-model-small-en-us-0.15
 ```
 
-Cleanup and feather sizes must be positive odd integers; 1 disables the
-corresponding spatial operation. `--smoothing-ms` must be finite and nonnegative.
-Larger values smooth more but lag movement. Area ratio must be between 0 and 1.
-Area is measured using OpenCV contour area, not a count of foreground pixels.
-Oversized kernels/thresholds can erase small cloak details. Colour calibration,
-capture, toggling invisibility and resolution changes reset temporal history.
-No new dependencies are required. Real-cloth performance and appearance still
-need the manual webcam acceptance check.
+Models are not bundled or automatically downloaded. V toggles listening; missing
+models, microphones and permissions appear as status errors without blocking
+camera capture. Speak an exact command:
 
-## Tests
+| Command | Action |
+| --- | --- |
+| Lumos / Invisibility | Activate invisibility |
+| Nox | Deactivate invisibility |
+| Reveal | Disable invisibility, clear visual modes and resume normal live output |
+
+Fictional words depend on the chosen model's vocabulary and may not be recognized;
+**Invisibility** and **Reveal** are practical alternatives. Recognition accuracy
+has not been measured here. Partial phrases and arbitrary conversation are not
+accepted as commands. No microphone audio is uploaded.
+
+J enables MediaPipe Hands. Hold an open palm for three observations to activate,
+or a closed fist to deactivate. Inference is limited to about 10 Hz and commands
+have a 1.5-second cooldown. The orientation-tolerant distance heuristic can still
+be ambiguous with foreshortened/occluded hands. A plays/mutes distinct generated
+activation/deactivation chimes; they play only on state transitions. No sound
+files or licensed audio assets are required. Missing audio devices are reported.
+
+## Motion and floor calibration
+
+Lucas–Kanade optical flow estimates velocity from cloth texture. When reliable
+features are unavailable, observed cloak-bound displacement is the fallback.
+Footsteps are emitted along measured bottom-centre movement, not random positions.
+This estimates movement of the cloth, **not actual foot contact or gait**. It
+assumes one main cloak and a static camera. Sparkles originate on moving contours;
+stationary cloth emits no movement trail, though ambient mode emits independently.
+
+Optional `--floor-calibration floor.json` accepts corresponding quadrilateral
+corners and a spacing in your chosen floor units:
+
+```json
+{
+  "image_points": [[200, 250], [440, 250], [600, 470], [40, 470]],
+  "floor_points": [[0, 0], [200, 0], [200, 300], [0, 300]],
+  "spacing": 35
+}
+```
+
+Replace image coordinates with your measured floor corners in matching order.
+The mapping assumes a planar floor. Without calibration, spacing uses pixels
+and footprint size approximates perspective from vertical position.
+
+## Synthetic demo and recording
+
+```bash
+python main.py --gui --demo --width 640 --height 480
+python -m tools.validate_demo --mode core --width 1280 --height 720
+python -m tools.validate_demo --frames 180 --output demo.avi
+```
+
+The desktop demo first captures an empty synthetic scene, then animates a textured
+green rectangle. The headless recorder renders labelled combined effects and
+**decodes the result to verify its frame count**. It prints processing timings;
+its `all` preset means ghost + footsteps + sparkles + shield, not simultaneous
+AI inference/voice/GUI. The committed screenshot is a real Qt capture of this
+synthetic scene, not evidence of a physical cloak. For a physical demonstration,
+use OS screen recording, show empty capture, cloth entry, I comparison, calibrated
+colours and G/M/S modes. Follow [manual acceptance](docs/manual_testing.md).
+
+## Tests and performance
 
 ```bash
 python -m pip install -r requirements-dev.txt
 python -m pytest -q
+ruff check .
+ruff format --check .
+python -m pip check
 ```
 
-Tests exercise HSV masks, both red hue intervals, calibration round-tripping,
-invalid configuration, median capture and locking, recapture, alpha
-compositing, full pipeline replacement, toggle, resolution invalidation and
-camera failure/release. They use generated frames and controlled device doubles;
-they do not establish physical-webcam quality or a real-device FPS target.
-Refinement tests additionally cover noise rejection, hole preservation, soft
-edges, temporal decay, frame-rate independence and colour-change history reset.
-See [the manual acceptance guide](docs/manual_testing.md) for hardware validation.
+Install `requirements-gui.txt` as well for optional Qt/MediaPipe tests; otherwise
+those tests are reported as skipped. For a headless full run on Linux:
+
+```bash
+QT_QPA_PLATFORM=offscreen SDL_AUDIODRIVER=dummy MPLCONFIGDIR=/tmp/marauder-mpl python -m pytest -q
+```
+
+Tests cover masks/compositing, capture/recapture, error/release, calibration,
+optical flow translation, tracking-linked footsteps, particle bounds/fading,
+homographies, effects/freeze, gestures, voice queue/failure paths, actual blank
+MediaPipe inference, real offscreen Qt frames/controls/shutdown, scene warnings
+and video encode/decode. Tests do not establish spoken accuracy or hardware FPS.
+See [measured results](docs/validation.md).
+
+Start at 640×480 with two OpenCV threads (`--opencv-threads 2`). Lower resolution
+and disable unused AI/effects when needed. The 25–30 FPS goal depends on hardware
+and enabled modes: combined 720p effects did not meet it in this cloud benchmark.
+Particle storage is capped at 400 and footprints at 80. Optional hand/pose work is
+throttled, voice runs separately, GUI frame delivery retains one latest frame,
+and unused optical flow is skipped. Median capture can pause briefly on its
+final frame and uses memory proportional to frame count and resolution.
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-    Camera --> FrameProcessor
-    FrameProcessor --> BackgroundCapture
-    FrameProcessor --> CloakDetector
-    BackgroundCapture --> Composite
-    CloakDetector --> Composite
-    Camera --> Composite
-    Composite --> OpenCVPreview
-    Keyboard --> FrameProcessor
-    HSVTrackbars --> CloakDetector
+    Camera[Webcam or explicit synthetic source] --> Pipeline
+    HSV[HSV presets / calibration] --> Pipeline
+    Background[Multi-frame locked background] --> Pipeline
+    Pipeline[Colour mask → optional person gate → cleanup → feather → temporal filter] --> Composite
+    Background --> Composite
+    Composite --> Effects[Ghost / particles / footsteps / reveal / shield / freeze]
+    Camera --> Tracking[Optical flow / optional hands and pose]
+    Tracking --> Effects
+    Voice[Offline voice worker] --> Controller
+    Keys[Keyboard / GUI commands] --> Controller
+    Controller --> Pipeline
+    Controller --> Effects
+    Effects --> Preview[OpenCV or PySide6 preview]
 ```
 
-See [architecture and phase notes](docs/architecture.md) for module boundaries
-and the roadmap. The Apache 2.0 license remains unchanged.
+See [architecture](docs/architecture.md) for module responsibilities and threading.
+The original Apache 2.0 license is retained.
 
-## Troubleshooting and performance
+## Troubleshooting and limitations
 
-- **No webcam/access denied:** check OS camera permission, USB connection and
-  device index. Close other applications using the webcam. A disconnection
-  exits with an error and releases resources; reconnect and restart.
-- **No window/display:** run in a graphical desktop, with the GUI OpenCV package.
-  A headless environment can run tests, but cannot demonstrate a physical camera.
-- **No invisibility:** capture the background first and check the selected colour,
-  I toggle and calibration mask. Black/dark cloth usually lacks useful saturation.
-- **Holes, jagged edges or flicker:** improve lighting and cloth saturation. Refinement
-  reduces noise and flicker, but cannot recover cloth pixels outside the HSV
-  range. Temporal smoothing can leave a short trail during fast motion; use
-  `--raw-mask` for comparison.
-- **Background objects disappear:** they share the keyed colour. Change cloth,
-  background or HSV bounds. There is no semantic person segmentation yet.
-- **Misalignment:** keep the camera still and recapture. Movement is not
-  automatically detected in this phase.
-- **Low FPS:** use 640×480, improve lighting to shorten exposure, and close other
-  camera software. The 25–30 FPS goal must be measured on your laptop; it is not
-  guaranteed. Median calculation can briefly pause on the final capture frame;
-  3–31 frames are supported and capture memory scales with frame size/count.
-- **Invalid calibration file or unexpected error:** the application reports a
-  traceback and nonzero exit rather than failing silently. Fix the file or omit
-  `--calibration` to return to presets.
+- **No webcam/access denied:** check OS permissions, USB, device index and other
+  applications. A disconnect exits/reports an explicit error; reconnect and restart.
+- **No GUI/window:** use a graphical desktop and install GUI requirements. Offscreen
+  Qt is for automated tests; it is not an interactive webcam demonstration. Linux
+  Qt errors can require the desktop system libraries described above.
+- **No invisibility:** capture the empty scene, select the right preset, check I
+  and inspect the white regions of the mask. Pale/dark cloth has weak HSV separation.
+- **Background objects disappear:** shared keyed colours also disappear. Change the
+  cloth/background, calibrate more tightly, or try the optional person gate.
+- **Edge flicker/trails:** improve lighting and cloth saturation; reduce smoothing
+  for rapid motion and use `--raw-mask` to compare. No segmentation method can
+  infer a completely occluded background that was never captured.
+- **Scene warning/misalignment:** clear the scene and recapture. The warning uses
+  persistent background subtraction outside the cloth; large foreground objects
+  or lighting changes can also trigger it. It does not automatically stabilize
+  a moving camera or prove that the camera moved.
+- **Voice unavailable:** select an unpacked model, install interaction requirements,
+  check PortAudio, microphone rate/permissions and model vocabulary. Physical
+  speech recognition remains unverified here.
+- **MediaPipe/audio unavailable:** optional features fail with visible/logged status;
+  use keyboard controls and the core pipeline. Keep the pinned compatible stack.
+- **Invalid calibration/runtime error:** errors are logged explicitly; repair the
+  file or omit `--calibration` to restore presets. GUI camera errors require restart.
 
-## Demo and future work
-
-Screenshots to add after hardware testing: **[empty-scene capture]**, **[green
-cloak before/after]**, **[HSV calibration mask]**. These are documentation slots,
-not generated evidence. Use your OS screen recorder to record background capture,
-entering the frame, I toggling and recapture. Keep the camera fixed and record
-the displayed FPS. No demo recording or real-webcam validation is claimed here.
-
-Next, after physical webcam acceptance of the core and refinement: motion-linked effects; asynchronous voice/MediaPipe interaction;
-additional modes and desktop GUI; then performance profiling and demonstration.
-
-## Phase 3: motion-driven effects
-
-G toggles translucent Ghost/Predator mode with a cyan shimmering edge. M toggles
-fading footsteps along the measured bottom-centre movement path. S toggles
-golden particles emitted along moving cloak contours. Tracking uses sparse
-Lucas–Kanade optical flow with silhouette displacement as a fallback for cloth
-without texture. A stationary cloth does not continuously emit footsteps or
-sparkles. Cloth movement is an approximation of walking, not foot-pose detection.
-
-Optional `--floor-calibration floor.json` accepts four image/floor point pairs:
-`{"image_points":[[0,0],[100,0],[100,100],[0,100]],"floor_points":[[0,0],[100,0],[100,100],[0,100]],"spacing":35}`.
-Replace these with measured floor quadrilateral corners in corresponding order.
-Spacing is in calibrated floor units; the fallback uses image pixels and a
-vertical-position scale approximation. Floor mapping assumes a planar floor.
-
-Tests exercise translated-image optical flow, stationary/moving footstep
-generation and fade, particle capacity/expiry, homography round-trip and ghost
-compositing. Check appearance on a real camera using G/M/S before a demo.
-
-## Phase 4: hands, voice and sound
-
-Install optional interaction dependencies with
-`python -m pip install -r requirements-interaction.txt`. The base now uses
-NumPy 1.26.4 and **opencv-contrib-python 4.11.0.86** to match MediaPipe 0.10.21;
-do not install multiple OpenCV wheel variants in the same virtual environment.
-For an existing environment, uninstall `opencv-python` before installing these
-requirements, or create a fresh virtual environment.
-
-J toggles MediaPipe Hands. Hold an open palm for three observations to activate,
-or a fist to deactivate. A 1.5-second cooldown prevents repeated triggers; hands
-must be visible and lighting adequate. This heuristic uses finger/wrist distance
-ratios and may be ambiguous with foreshortened or sideways hands.
-
-V toggles **offline** Vosk voice recognition in a background thread. Download and
-unpack an English Vosk model from the official model catalogue
-(https://alphacephei.com/vosk/models), then run
-`python main.py --voice-model /path/to/vosk-model-small-en-us-0.15`.
-Model files are not bundled or automatically downloaded. Speak exactly Lumos or
-Invisibility to activate, and Nox or Reveal to deactivate. No audio is uploaded.
-Microphone permissions and PortAudio are needed (`libportaudio2` on Debian/Ubuntu).
-A toggles sound. Activation/deactivation play different synthesized chimes once
-per state change; playback is nonblocking and missing audio devices are reported.
-No external sound assets or credentials are needed.
-
-Automated tests cover command parsing, state/audio dispatch, hand geometry,
-missing-model errors and worker failure containment. They do not verify spoken
-command accuracy or physical hands/microphone/speaker behaviour in this cloud.
-
-## Phase 5: desktop interface and additional modes
-
-```bash
-python -m pip install -r requirements-gui.txt
-python main.py --gui --width 640 --height 480
-python main.py --gui --demo --width 640 --height 480
-```
-
-The demo is explicitly **synthetic**, automatically captures its empty test scene
-and then animates a green rectangle. It demonstrates rendering and desktop
-controls, not physical webcam quality. The GUI displays a live preview, alpha
-mask, modes, FPS/processing time, camera/background state and interaction errors.
-Capture, colour/HSV calibration save/load, invisibility/particle sliders, sound,
-gestures, offline voice and mode controls are in the right-hand scroll panel.
-The camera and optional inference run in a worker thread; frame delivery retains
-only the latest frame to avoid GUI queue buildup.
-
-R toggles a glowing reveal silhouette; H toggles animated shield rings; T freezes
-the rendered image while camera capture continues; P toggles floating ambient
-particles. GUI controls choose gold, purple or blue particles, a heatmap reveal,
-and intensity from 0–100%. O enables optional MediaPipe Pose to anchor the shield;
-without a visible pose the measured cloak bounds are used. E toggles a small
-MediaPipe person mask gate: it can suppress keyed background objects but may
-also remove parts of loose cloth. HSV remains the primary invisibility mask.
-Pose and person segmentation are off by default and require interaction extras.
-
-![Actual desktop screenshot using the synthetic source](docs/images/synthetic-desktop.png)
-
-Offscreen Qt integration tests exercise real widgets, threaded synthetic frames,
-controls, capture, freeze and worker shutdown. Blank-frame inference checks for
-MediaPipe Pose/person segmentation are separate from physical-person validation.
+Remaining improvements include physical-device tuning, true foot-pose gait
+estimation, stronger camera-motion discrimination/stabilization, model-specific
+spell-vocabulary tuning, reduced-resolution effect layers and GPU rendering.
+Hardware demo screenshots/recording should be added after physical acceptance.

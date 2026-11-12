@@ -1,4 +1,5 @@
 """Bounded particle simulation with elapsed-time motion and fading glows."""
+
 from dataclasses import dataclass
 import math
 
@@ -31,14 +32,15 @@ class Particle:
         if self.opacity <= 0:
             return
         color = tuple(int(c * self.opacity) for c in self.color)
-        cv2.circle(layer, (round(self.x), round(self.y)), self.particle_size,
-                   color, -1, cv2.LINE_AA)
+        cv2.circle(
+            layer, (round(self.x), round(self.y)), self.particle_size, color, -1, cv2.LINE_AA
+        )
 
 
 class ParticleEngine:
     def __init__(self, capacity=400, seed=None):
         if capacity < 1:
-            raise ValueError('Particle capacity must be positive')
+            raise ValueError("Particle capacity must be positive")
         self.capacity = capacity
         self.particles = []
         self.rng = np.random.default_rng(seed)
@@ -55,17 +57,27 @@ class ParticleEngine:
             x, y = points[index]
             angle = self.rng.uniform(0, math.tau)
             speed = self.rng.uniform(12, 65)
-            self.particles.append(Particle(
-                float(x), float(y), math.cos(angle) * speed,
-                math.sin(angle) * speed - 25, self.rng.uniform(0.4, 1.5),
-                int(self.rng.integers(1, 4)), color))
+            self.particles.append(
+                Particle(
+                    float(x),
+                    float(y),
+                    math.cos(angle) * speed,
+                    math.sin(angle) * speed - 25,
+                    self.rng.uniform(0.4, 1.5),
+                    int(self.rng.integers(1, 4)),
+                    color,
+                )
+            )
 
     def update(self, dt, shape):
         for particle in self.particles:
             particle.update(dt)
         h, w = shape[:2]
-        self.particles = [p for p in self.particles if p.opacity > 0
-                          and -20 <= p.x <= w + 20 and -20 <= p.y <= h + 20]
+        self.particles = [
+            p
+            for p in self.particles
+            if p.opacity > 0 and -20 <= p.x <= w + 20 and -20 <= p.y <= h + 20
+        ]
 
     def draw(self, frame):
         layer = np.zeros_like(frame)

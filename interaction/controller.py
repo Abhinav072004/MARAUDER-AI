@@ -1,4 +1,5 @@
 """Shared state/commands for keyboard, GUI, offline voice and hand gestures."""
+
 import logging
 
 from interaction.audio_manager import AudioManager
@@ -12,7 +13,7 @@ class Controller:
         self.audio = AudioManager()
         self.gesture = None
         self.pose = None
-        self.status = ''
+        self.status = ""
 
     def activate(self, active):
         if self.processor.enabled != active:
@@ -23,14 +24,15 @@ class Controller:
         if self.gesture is not None:
             self.gesture.close()
             self.gesture = None
-            self.status = 'Gestures off'
+            self.status = "Gestures off"
         else:
             try:
                 from tracking.hand_gesture import HandGesture
+
                 self.gesture = HandGesture()
-                self.status = 'Gestures on: open palm / fist'
+                self.status = "Gestures on: open palm / fist"
             except Exception as error:
-                self.status = f'Gestures unavailable: {error}'
+                self.status = f"Gestures unavailable: {error}"
                 logging.warning(self.status)
 
     def toggle_pose(self):
@@ -41,6 +43,7 @@ class Controller:
         else:
             try:
                 from tracking.pose_tracker import PoseTracker
+
                 self.pose = PoseTracker()
             except Exception as error:
                 self.status = f"Pose unavailable: {error}"
@@ -54,6 +57,7 @@ class Controller:
         else:
             try:
                 from core.person_segmentation import PersonSegmentation
+
                 self.processor.person_segmentation = PersonSegmentation()
             except Exception as error:
                 self.status = f"Segmentation unavailable: {error}"
@@ -68,7 +72,7 @@ class Controller:
             try:
                 self.voice.start()
             except Exception as error:
-                self.status = f'Voice unavailable: {error}'
+                self.status = f"Voice unavailable: {error}"
                 logging.warning(self.status)
 
     def update(self, frame):
@@ -87,37 +91,52 @@ class Controller:
                 if command:
                     commands.append(command)
             except Exception as error:
-                self.status = f'Gesture tracking failed: {error}'
+                self.status = f"Gesture tracking failed: {error}"
                 self.gesture.close()
                 self.gesture = None
         for command in commands:
-            self.activate(command == 'activate')
+            if command == "reveal":
+                self.activate(False)
+                effects = self.processor.effects
+                for name in ("ghost", "footsteps", "sparkles", "reveal", "shield", "ambient"):
+                    setattr(effects, name, False)
+                effects.freeze.enabled = False
+                effects.particles.particles.clear()
+                effects.steps.steps.clear()
+            elif command in ("activate", "deactivate"):
+                self.activate(command == "activate")
 
     def key(self, key):
         if isinstance(key, int):
-            key = chr(key).lower() if 0 <= key <= 255 else ''
+            key = chr(key).lower() if 0 <= key <= 255 else ""
         key = key.lower()
-        if key == 'b':
+        if key == "b":
             self.processor.background.start()
-        elif key == 'i':
+        elif key == "i":
             self.activate(not self.processor.enabled)
-        elif key in ('g', 'm', 's', 'r', 'h', 'p'):
-            name = {'g': 'ghost', 'm': 'footsteps', 's': 'sparkles',
-                    'r': 'reveal', 'h': 'shield', 'p': 'ambient'}[key]
+        elif key in ("g", "m", "s", "r", "h", "p"):
+            name = {
+                "g": "ghost",
+                "m": "footsteps",
+                "s": "sparkles",
+                "r": "reveal",
+                "h": "shield",
+                "p": "ambient",
+            }[key]
             effects = self.processor.effects
             setattr(effects, name, not getattr(effects, name))
-        elif key == 't':
+        elif key == "t":
             freeze = self.processor.effects.freeze
             freeze.enabled = not freeze.enabled
-        elif key == 'o':
+        elif key == "o":
             self.toggle_pose()
-        elif key == 'e':
+        elif key == "e":
             self.toggle_segmentation()
-        elif key == 'v':
+        elif key == "v":
             self.toggle_voice()
-        elif key == 'j':
+        elif key == "j":
             self.toggle_gestures()
-        elif key == 'a':
+        elif key == "a":
             self.audio.enabled = not self.audio.enabled
         else:
             return False

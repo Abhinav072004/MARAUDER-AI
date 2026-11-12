@@ -11,6 +11,12 @@ def composite(frame, background, mask, intensity=1.0):
         raise ValueError("Frame, background and mask dimensions must match")
     if not 0 <= intensity <= 1:
         raise ValueError("Intensity must be between 0 and 1")
-    alpha = mask.astype(np.float32) / 255.0 * intensity
-    alpha = alpha[..., None]
-    return np.clip(frame * (1 - alpha) + background * alpha, 0, 255).astype(np.uint8)
+    alpha = mask.astype(np.float32)
+    alpha *= intensity / 255.0
+    # Algebraically equivalent blend using one reusable RGB float buffer.
+    result = background.astype(np.float32)
+    result -= frame
+    result *= alpha[..., None]
+    result += frame
+    np.clip(result, 0, 255, out=result)
+    return result.astype(np.uint8)

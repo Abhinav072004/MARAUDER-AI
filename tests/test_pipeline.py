@@ -10,9 +10,14 @@ from core.frame_processor import FrameProcessor
 from core.invisibility_engine import composite
 
 
-@pytest.mark.parametrize("color,hues", [
-    ("green", [60]), ("blue", [110]), ("red", [0, 179]),
-])
+@pytest.mark.parametrize(
+    "color,hues",
+    [
+        ("green", [60]),
+        ("blue", [110]),
+        ("red", [0, 179]),
+    ],
+)
 def test_presets(color, hues):
     detector = CloakDetector(color)
     for hue in hues:

@@ -1,4 +1,5 @@
 """Nonblocking synthesized spell chimes; no proprietary sound assets needed."""
+
 import logging
 import os
 
@@ -15,8 +16,9 @@ class AudioManager:
         if not self.enabled or self._failed:
             return
         try:
-            os.environ.setdefault('PYGAME_HIDE_SUPPORT_PROMPT', '1')
+            os.environ.setdefault("PYGAME_HIDE_SUPPORT_PROMPT", "1")
             import pygame
+
             if self._sounds is None:
                 pygame.mixer.init(frequency=22050, size=-16, channels=1, buffer=512)
                 t = np.arange(6615) / 22050
@@ -28,10 +30,11 @@ class AudioManager:
                     self._sounds[state] = pygame.mixer.Sound(buffer=pcm.tobytes())
             self._sounds[bool(activated)].play()
         except Exception as error:
-            logging.warning('Audio unavailable: %s', error)
+            logging.warning("Audio unavailable: %s", error)
             self._failed = True
 
     def close(self):
         if self._sounds is not None:
             import pygame
+
             pygame.mixer.quit()

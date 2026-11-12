@@ -1,11 +1,12 @@
 """Composable effects orchestrator; motion comes from the original camera frame."""
+
 import cv2
 import numpy as np
 
 from effects.footsteps import Footsteps
 from effects.ghost_mode import GhostMode
 from effects.particle_engine import ParticleEngine
-from tracking.motion_tracker import MotionTracker
+from tracking.motion_tracker import Motion, MotionTracker
 from effects.reveal_mode import render_reveal
 from effects.magic_shield import render_shield
 from effects.time_freeze import TimeFreeze
@@ -19,6 +20,7 @@ class SceneEffects:
         self.ambient = False
         self.particle_color = (40, 190, 255)
         self.pose_bounds = None
+        self.person_mask = None
         self.freeze = TimeFreeze()
         self.ghost = False
         self.footsteps = False
@@ -42,13 +44,17 @@ class SceneEffects:
             self.steps.last = None
             self.particles.particles.clear()
             self._shape = frame.shape
-        motion = self.tracker.update(frame, mask, dt)
+        if self.footsteps or self.sparkles or self.ambient or self.shield:
+            motion = self.tracker.update(frame, mask, dt)
+        else:
+            self.tracker.reset()
+            motion = Motion()
         self.motion = motion
         if self.ghost and enabled:
-            output = self.ghost_effect.render(frame, background, mask,
-                                               self.time, self.intensity)
+            output = self.ghost_effect.render(frame, background, mask, self.time, self.intensity)
         if self.reveal:
-            output = render_reveal(frame, mask, self.time, self.heatmap)
+            silhouette = self.person_mask if self.person_mask is not None else mask
+            output = render_reveal(frame, silhouette, self.time, self.heatmap)
         if self.shield:
             output = render_shield(output, self.pose_bounds or motion.bounds, self.time)
         if self.footsteps:
@@ -60,8 +66,9 @@ class SceneEffects:
             self.steps.distance = 0
         points = np.empty((0, 2))
         if self.sparkles and motion.speed > 8:
-            contours, _ = cv2.findContours(np.uint8(mask > 127) * 255,
-                                          cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+            contours, _ = cv2.findContours(
+                np.uint8(mask > 127) * 255, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE
+            )
             if contours:
                 points = np.concatenate(contours).reshape(-1, 2)
         if self.ambient and motion.bounds is not None:

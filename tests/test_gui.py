@@ -1,23 +1,34 @@
 """Real offscreen Qt widgets and threaded synthetic-camera integration."""
+
 import os
 import time
 from types import SimpleNamespace
 
 import pytest
 
-os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
-pytest.importorskip('PySide6')
+os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+pytest.importorskip("PySide6")
 from PySide6.QtWidgets import QApplication
 
 from gui.main_window import MainWindow
 
 
 def args():
-    return SimpleNamespace(width=640, height=480, background_frames=3,
-                           raw_mask=False, cleanup_size=3, feather_size=5,
-                           min_area_ratio=0.0005, smoothing_ms=45,
-                           calibration=None, color='green', demo=True,
-                           voice_model=None, camera=None)
+    return SimpleNamespace(
+        width=640,
+        height=480,
+        background_frames=3,
+        raw_mask=False,
+        cleanup_size=3,
+        feather_size=5,
+        min_area_ratio=0.0005,
+        smoothing_ms=45,
+        calibration=None,
+        color="green",
+        demo=True,
+        voice_model=None,
+        camera=None,
+    )
 
 
 def pump(app, predicate, timeout=5):
@@ -36,17 +47,17 @@ def test_desktop_demo_controls_frames_and_clean_shutdown():
     window.show()
     try:
         assert pump(app, lambda: window.preview._pixmap is not None)
-        assert 'SYNTHETIC DEMO' in window.source.text()
-        window.send('key', 'g')
-        assert pump(app, lambda: 'ghost' in window.metrics.text())
-        window.controls.color.setCurrentText('blue')
-        assert pump(app, lambda: 'blue cloak' in window.metrics.text())
+        assert "SYNTHETIC DEMO" in window.source.text()
+        window.send("key", "g")
+        assert pump(app, lambda: "ghost" in window.metrics.text())
+        window.controls.color.setCurrentText("blue")
+        assert pump(app, lambda: "blue cloak" in window.metrics.text())
         window.controls.capture_button.click()
-        assert pump(app, lambda: 'Background locked' in window.metrics.text())
-        window.send('intensity', 50)
-        window.send('key', 't')
-        assert pump(app, lambda: 'frozen' in window.metrics.text())
-        window.send('key', 't')
+        assert pump(app, lambda: "Background locked" in window.metrics.text())
+        window.send("intensity", 50)
+        window.send("key", "t")
+        assert pump(app, lambda: "frozen" in window.metrics.text())
+        window.send("key", "t")
     finally:
         window.close()
         app.processEvents()
@@ -59,8 +70,35 @@ def test_calibration_bounds_validation_and_failure_message():
     commands = []
     window.controls.command.connect(lambda a, v: commands.append((a, v)))
     window.controls.hsv[0].setValue(45)
-    assert commands[-1][0] == 'hsv'
-    window._failed('test camera disconnected')
-    assert 'test camera disconnected' in window.metrics.text()
+    assert commands[-1][0] == "hsv"
+    window.controls.select_preset("green")
+    assert commands[-1] == ("color", "green")
+    assert window.controls.hsv[0].value() == 35
+    window._failed("test camera disconnected")
+    assert "test camera disconnected" in window.metrics.text()
     assert window.close()
     app.processEvents()
+
+
+def test_loaded_calibration_updates_controls_without_sending_edits(tmp_path):
+    from core.cloak_detector import CloakDetector
+
+    app = QApplication.instance() or QApplication([])
+    config = args()
+    detector = CloakDetector()
+    detector.set_bounds([42, 100, 60], [70, 240, 250])
+    path = tmp_path / "cloth.json"
+    detector.save(path)
+    config.calibration = str(path)
+    window = MainWindow(config)
+    window.show()
+    try:
+        assert pump(app, lambda: window.controls.hsv[0].value() == 42)
+        assert [s.value() for s in window.controls.hsv] == [42, 100, 60, 70, 240, 250]
+        window.send("color", "red")
+        window.send("load", str(path))
+        assert pump(app, lambda: window._calibration_revision == 2)
+    finally:
+        window.close()
+        app.processEvents()
+    assert not window.worker.isRunning()

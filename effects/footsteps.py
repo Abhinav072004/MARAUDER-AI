@@ -1,4 +1,5 @@
 """Alternating, fading steps emitted only along observed movement paths."""
+
 import math
 
 import cv2
@@ -16,14 +17,14 @@ class Footsteps:
         self.distance = 0.0
 
     def update(self, motion, dt):
-        self.steps = [(p, age + dt, angle, left)
-                      for p, age, angle, left in self.steps if age + dt < 3.0]
+        self.steps = [
+            (p, age + dt, angle, left) for p, age, angle, left in self.steps if age + dt < 3.0
+        ]
         if motion.position is None:
             self.last = None
             self.distance = 0
             return
-        point = (self.mapping.to_floor(motion.position) if self.mapping
-                 else motion.position)
+        point = self.mapping.to_floor(motion.position) if self.mapping else motion.position
         if self.last is not None:
             delta = np.subtract(point, self.last)
             distance = float(np.linalg.norm(delta))
@@ -51,7 +52,15 @@ class Footsteps:
             # Image-space fallback approximates perspective by vertical position.
             scale = np.clip(y / frame.shape[0], 0.3, 1.0)
             color = tuple(int(c * (1 - age / 3)) for c in (255, 125, 160))
-            cv2.ellipse(layer, (round(x), round(y)),
-                        (max(2, int(13 * scale)), max(2, int(5 * scale))),
-                        angle, 0, 360, color, -1, cv2.LINE_AA)
+            cv2.ellipse(
+                layer,
+                (round(x), round(y)),
+                (max(2, int(13 * scale)), max(2, int(5 * scale))),
+                angle,
+                0,
+                360,
+                color,
+                -1,
+                cv2.LINE_AA,
+            )
         return cv2.add(frame, cv2.add(layer, cv2.GaussianBlur(layer, (17, 17), 0)))

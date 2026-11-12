@@ -1,4 +1,5 @@
 """Additional rendered modes, compositing controls and state invariants."""
+
 import numpy as np
 
 from core.frame_processor import FrameProcessor
@@ -43,13 +44,13 @@ def test_additional_shortcuts_and_intensity():
     processor = FrameProcessor(refine=False)
     controller = Controller(processor)
     controller.audio.enabled = False
-    for key, field in [('r', 'reveal'), ('h', 'shield'), ('p', 'ambient')]:
+    for key, field in [("r", "reveal"), ("h", "shield"), ("p", "ambient")]:
         controller.key(key)
         assert getattr(processor.effects, field)
         controller.key(key)
-    controller.key('t')
+    controller.key("t")
     assert processor.effects.freeze.enabled
-    controller.key('t')
+    controller.key("t")
     processor.background.background = np.zeros((30, 30, 3), np.uint8)
     processor.effects.intensity = 0
     green = np.full((30, 30, 3), (0, 255, 0), np.uint8)

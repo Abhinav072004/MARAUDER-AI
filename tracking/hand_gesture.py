@@ -1,4 +1,5 @@
 """Optional MediaPipe Hands recognition with stable observations and cooldown."""
+
 from time import monotonic
 
 import cv2
@@ -20,23 +21,24 @@ def classify_hand(landmarks):
         extended.append(tip_distance > pip_distance * 1.2)
         folded.append(tip_distance < pip_distance * 0.9)
     if all(extended):
-        return 'activate'
+        return "activate"
     if all(folded):
-        return 'deactivate'
+        return "deactivate"
     return None
 
 
 class HandGesture:
     def __init__(self, cooldown=1.5):
         import mediapipe as mp
+
         self.hands = mp.solutions.hands.Hands(
-            max_num_hands=1, min_detection_confidence=0.65,
-            min_tracking_confidence=0.65)
+            max_num_hands=1, min_detection_confidence=0.65, min_tracking_confidence=0.65
+        )
         self.cooldown = cooldown
-        self.last_trigger = float('-inf')
+        self.last_trigger = float("-inf")
         self.candidate = None
         self.count = 0
-        self.last_inference = float('-inf')
+        self.last_inference = float("-inf")
 
     def update(self, frame):
         now = monotonic()
@@ -47,8 +49,11 @@ class HandGesture:
         if rgb.shape[1] > 640:
             rgb = cv2.resize(rgb, (640, round(rgb.shape[0] * 640 / rgb.shape[1])))
         result = self.hands.process(rgb)
-        command = (classify_hand(result.multi_hand_landmarks[0].landmark)
-                   if result.multi_hand_landmarks else None)
+        command = (
+            classify_hand(result.multi_hand_landmarks[0].landmark)
+            if result.multi_hand_landmarks
+            else None
+        )
         self.count = self.count + 1 if command == self.candidate else 1
         self.candidate = command
         if command and self.count >= 3 and now - self.last_trigger >= self.cooldown:
